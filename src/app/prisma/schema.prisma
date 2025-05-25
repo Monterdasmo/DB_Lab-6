@@ -1,0 +1,95 @@
+// This is your Prisma schema file for the OpenData system
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  roleId   Int      @id @default(autoincrement()) @map("role_id")
+  name     String   @unique @db.VarChar(45)
+  accesses Access[]
+
+  @@map("role")
+}
+
+model Category {
+  categoryId       Int        @id @default(autoincrement()) @map("category_id")
+  name             String     @unique @db.VarChar(45)
+  parentCategoryId Int?       @map("parent_category_id")
+  parentCategory   Category?  @relation("CategoryToCategory", fields: [parentCategoryId], references: [categoryId])
+  subCategories    Category[] @relation("CategoryToCategory")
+  data             Data[]
+
+  @@index([parentCategoryId])
+  @@map("category")
+}
+
+model Data {
+  dataId      Int      @id @default(autoincrement()) @map("data_id")
+  categoryId  Int      @map("category_id")
+  description String?  @db.LongText
+  createdAt   DateTime @db.DateTime(0)
+  updatedAt   DateTime @db.DateTime(0)
+  content     String   @db.VarChar(45)
+  format      String   @db.VarChar(45)
+  name        String   @unique @db.VarChar(45)
+  category    Category @relation(fields: [categoryId], references: [categoryId])
+  accesses    Access[]
+  links       Link[]
+
+  @@index([categoryId])
+  @@map("data")
+}
+
+model User {
+  userId    Int      @id @default(autoincrement()) @map("user_id")
+  firstname String   @db.VarChar(45)
+  password  String   @db.VarChar(255) // Increased to accommodate bcrypt hash
+  lastname  String   @db.VarChar(45)
+  email     String   @unique @db.VarChar(100) // Also increased email length
+  login     String   @unique @db.VarChar(45)
+  accesses  Access[]
+
+  @@map("user")
+}
+
+model Access {
+  accessId Int  @id @default(autoincrement()) @map("access_id")
+  userId   Int  @map("user_id")
+  roleId   Int  @map("role_id")
+  dataId   Int  @map("data_id")
+  user     User @relation(fields: [userId], references: [userId])
+  role     Role @relation(fields: [roleId], references: [roleId])
+  data     Data @relation(fields: [dataId], references: [dataId])
+
+  @@index([userId])
+  @@index([roleId])
+  @@index([dataId])
+  @@map("access")
+}
+
+model Tag {
+  tagId Int    @id @default(autoincrement()) @map("tag_id")
+  name  String @unique @db.VarChar(45)
+  links Link[]
+
+  @@map("tag")
+}
+
+model Link {
+  linkId Int  @id @default(autoincrement()) @map("link_id")
+  dataId Int  @map("data_id")
+  tagId  Int  @map("tag_id")
+  data   Data @relation(fields: [dataId], references: [dataId])
+  tag    Tag  @relation(fields: [tagId], references: [tagId])
+
+  @@index([dataId])
+  @@index([tagId])
+  @@map("link")
+}
