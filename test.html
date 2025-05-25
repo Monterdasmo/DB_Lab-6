@@ -41,6 +41,17 @@
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
@@ -118,7 +129,7 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -156,7 +167,55 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="Тестування-працездатності-системи"><a class="header" href="#Тестування-працездатності-системи">Тестування працездатності системи</a></h1>
-<p><em>В цьому розділі необхідно вказати засоби тестування, навести вихідні коди тестів та результати тестування.</em></p>
+<h3 id="Запуск-сервера"><a class="header" href="#Запуск-сервера">Запуск сервера</a></h3>
+<pre><code class="language-bash">npm run start:dev
+</code></pre>
+<p><img src="./img/image-25.png" alt="Запуск сервера" /></p>
+<h3 id="api-documentation-та-перелік-можливих-запитів"><a class="header" href="#api-documentation-та-перелік-можливих-запитів">Api documentation та перелік можливих запитів</a></h3>
+<p><img src="./img/image-37.png" alt="Swagger" /></p>
+<h3 id="users"><a class="header" href="#users">Users</a></h3>
+<p><strong>GET /users</strong></p>
+<p><img src="./img/image-27.png" alt="get all users" /></p>
+<p><strong>POST /users</strong></p>
+<p><img src="./img/image-29.png" alt="create new user" /></p>
+<p><strong>GET /users/:id</strong></p>
+<p><img src="./img/image-28.png" alt="get user by id" /></p>
+<p><strong>PUT /users/:id</strong></p>
+<p><img src="./img/image-30.png" alt="update user by id" /></p>
+<p><strong>DELETE /users/:id</strong></p>
+<p><img src="./img/image-31.png" alt="delete user by id" /></p>
+<h3 id="tags"><a class="header" href="#tags">Tags</a></h3>
+<p><strong>GET /tags</strong></p>
+<p><img src="./img/image-32.png" alt="get all tags" /></p>
+<p><img src="./img/image-38.png" alt="get all tags with search" /></p>
+<p><strong>POST /tags</strong></p>
+<p><img src="./img/image-33.png" alt="create new tag" /></p>
+<p><strong>GET /tags/:id</strong></p>
+<p><img src="./img/image-34.png" alt="get tag by id" /></p>
+<p><strong>PUT /tags/:id</strong></p>
+<p><img src="./img/image-35.png" alt="update tag by id" /></p>
+<p><strong>DELETE /tags/:id</strong></p>
+<p><img src="./img/image-36.png" alt="delete tag by id" /></p>
+<h3 id="exceptions"><a class="header" href="#exceptions">Exceptions</a></h3>
+<h4 id="users-1"><a class="header" href="#users-1">Users</a></h4>
+<p><strong>POST /users</strong></p>
+<p><img src="./img/image-40.png" alt="exceptions post users" /></p>
+<p><strong>GET /users/:id</strong></p>
+<p><img src="./img/image-41.png" alt="exceptions get user by id" /></p>
+<p><strong>PUT /users/:id</strong></p>
+<p><img src="./img/image-42.png" alt="exceptions patch user by id" /></p>
+<p><strong>DELETE /users/:id</strong></p>
+<p><img src="./img/image-43.png" alt="exceptions delete user by id" /></p>
+<h4 id="tags-1"><a class="header" href="#tags-1">Tags</a></h4>
+<p><strong>POST /tags</strong></p>
+<p><img src="./img/image-44.png" alt="exceptions create new tag" /></p>
+<p><strong>GET /tags/:id</strong></p>
+<p><img src="./img/image-39.png" alt="exceptions get tag by id" /></p>
+<p><strong>PUT /tags/:id</strong></p>
+<p><img src="./img/image-45.png" alt="exceptions update tag by id" />
+<img src="./img/image-46.png" alt="exceptions update tag by id" /></p>
+<p><strong>DELETE /tags/:id</strong></p>
+<p><img src="./img/image-47.png" alt="exceptions delete tag by id" /></p>
 
                     </main>
 

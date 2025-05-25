@@ -42,6 +42,17 @@
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
@@ -119,7 +130,7 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -904,8 +915,795 @@ COMMIT;
 
 </code></pre>
 <h2 id="restfull-сервіс-для-управління-даними"><a class="header" href="#restfull-сервіс-для-управління-даними">RESTfull сервіс для управління даними</a></h2>
+<h3 id="Схема-бази-даних-prisma-orm"><a class="header" href="#Схема-бази-даних-prisma-orm">Схема бази даних Prisma ORM</a></h3>
+<pre><code class="language-prisma">// This is your Prisma schema file for the OpenData system
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  roleId   Int      @id @default(autoincrement()) @map("role_id")
+  name     String   @unique @db.VarChar(45)
+  accesses Access[]
+
+  @@map("role")
+}
+
+model Category {
+  categoryId       Int        @id @default(autoincrement()) @map("category_id")
+  name             String     @unique @db.VarChar(45)
+  parentCategoryId Int?       @map("parent_category_id")
+  parentCategory   Category?  @relation("CategoryToCategory", fields: [parentCategoryId], references: [categoryId])
+  subCategories    Category[] @relation("CategoryToCategory")
+  data             Data[]
+
+  @@index([parentCategoryId])
+  @@map("category")
+}
+
+model Data {
+  dataId      Int      @id @default(autoincrement()) @map("data_id")
+  categoryId  Int      @map("category_id")
+  description String?  @db.LongText
+  createdAt   DateTime @db.DateTime(0)
+  updatedAt   DateTime @db.DateTime(0)
+  content     String   @db.VarChar(45)
+  format      String   @db.VarChar(45)
+  name        String   @unique @db.VarChar(45)
+  category    Category @relation(fields: [categoryId], references: [categoryId])
+  accesses    Access[]
+  links       Link[]
+
+  @@index([categoryId])
+  @@map("data")
+}
+
+model User {
+  userId    Int      @id @default(autoincrement()) @map("user_id")
+  firstname String   @db.VarChar(45)
+  password  String   @db.VarChar(255) // Increased to accommodate bcrypt hash
+  lastname  String   @db.VarChar(45)
+  email     String   @unique @db.VarChar(100) // Also increased email length
+  login     String   @unique @db.VarChar(45)
+  accesses  Access[]
+
+  @@map("user")
+}
+
+model Access {
+  accessId Int  @id @default(autoincrement()) @map("access_id")
+  userId   Int  @map("user_id")
+  roleId   Int  @map("role_id")
+  dataId   Int  @map("data_id")
+  user     User @relation(fields: [userId], references: [userId])
+  role     Role @relation(fields: [roleId], references: [roleId])
+  data     Data @relation(fields: [dataId], references: [dataId])
+
+  @@index([userId])
+  @@index([roleId])
+  @@index([dataId])
+  @@map("access")
+}
+
+model Tag {
+  tagId Int    @id @default(autoincrement()) @map("tag_id")
+  name  String @unique @db.VarChar(45)
+  links Link[]
+
+  @@map("tag")
+}
+
+model Link {
+  linkId Int  @id @default(autoincrement()) @map("link_id")
+  dataId Int  @map("data_id")
+  tagId  Int  @map("tag_id")
+  data   Data @relation(fields: [dataId], references: [dataId])
+  tag    Tag  @relation(fields: [tagId], references: [tagId])
+
+  @@index([dataId])
+  @@index([tagId])
+  @@map("link")
+}
+</code></pre>
+<h3 id="Головний-файл-програми"><a class="header" href="#Головний-файл-програми">Головний файл програми</a></h3>
+<pre><code class="language-ts">import { NestFactory } from '@nestjs/core'
+import { ValidationPipe } from '@nestjs/common'
+import { AppModule } from './app.module'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+
+async function bootstrap() {
+	const app = await NestFactory.create(AppModule)
+
+	const port = process.env.PORT || 3000
+
+	app.useGlobalPipes(
+		new ValidationPipe({
+			whitelist: true,
+			transform: true,
+		})
+	)
+
+	const config = new DocumentBuilder()
+		.setTitle('DB-6 API')
+		.setDescription('The DB-6 API description')
+		.setVersion('1.0')
+		.build()
+
+	const documentFactory = () =&gt; SwaggerModule.createDocument(app, config)
+	SwaggerModule.setup('api', app, documentFactory)
+
+	await app.listen(port)
+
+	console.info(`Started server on 127.0.0.1:${port}`)
+}
+bootstrap()
+</code></pre>
+<h3 id="mодулі-програми"><a class="header" href="#mодулі-програми">Mодулі програми</a></h3>
+<h4 id="Головний-модуль"><a class="header" href="#Головний-модуль">Головний модуль</a></h4>
+<pre><code class="language-ts">import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { ApiModule } from './api/api.module'
+
+@Module({
+	imports: [
+		ConfigModule.forRoot({
+			isGlobal: true,
+		}),
+		ApiModule,
+	],
+	controllers: [],
+	providers: [],
+})
+export class AppModule {}
+</code></pre>
+<h4 id="Головний-модуль-api"><a class="header" href="#Головний-модуль-api">Головний модуль API</a></h4>
+<pre><code class="language-ts">import { Module } from '@nestjs/common'
+import { TagModule } from './modules/tag.module'
+import { UserModule } from './modules/user.module'
+
+@Module({
+	imports: [UserModule, TagModule],
+})
+export class ApiModule {}
+</code></pre>
+<h4 id="user-модуль"><a class="header" href="#user-модуль">User модуль</a></h4>
+<pre><code class="language-ts">import { Module } from '@nestjs/common'
+import { UserRepository } from 'src/database/repositories/user.repository'
+import { UserController } from '../controllers/user.controller'
+import { UserService } from '../services/user.service'
+import { PrismaModule } from './prisma.module'
+
+@Module({
+	imports: [PrismaModule],
+	controllers: [UserController],
+	providers: [UserService, UserRepository],
+	exports: [UserService],
+})
+export class UserModule {}
+</code></pre>
+<h4 id="tag-модуль"><a class="header" href="#tag-модуль">Tag модуль</a></h4>
+<pre><code class="language-ts">import { Module } from '@nestjs/common'
+import { TagRepository } from 'src/database/repositories/tag.repository'
+import { TagController } from '../controllers/tag.controller'
+import { TagService } from '../services/tag.service'
+import { PrismaModule } from './prisma.module'
+
+@Module({
+	imports: [PrismaModule],
+	controllers: [TagController],
+	providers: [TagService, TagRepository],
+	exports: [TagService],
+})
+export class TagModule {}
+</code></pre>
+<h3 id="Сервіси-програми"><a class="header" href="#Сервіси-програми">Сервіси програми</a></h3>
+<h4 id="user-сервіс"><a class="header" href="#user-сервіс">User сервіс</a></h4>
+<pre><code class="language-ts">import {
+	ConflictException,
+	Injectable,
+	NotFoundException,
+} from '@nestjs/common'
+import * as bcrypt from 'bcrypt'
+import { UserRepository } from 'src/database/repositories/user.repository'
+import { CreateUserDto } from 'src/shared/dto/create-user.dto'
+import { UpdateUserDto } from 'src/shared/dto/update-user.dto'
+import { UserResponseDto } from 'src/shared/dto/user-response.dto'
+
+@Injectable()
+export class UserService {
+	constructor(private readonly userRepository: UserRepository) {}
+
+	async findAll(): Promise&lt;UserResponseDto[]&gt; {
+		const users = await this.userRepository.findAll()
+		return users.map(this.mapToResponseDto)
+	}
+
+	async findOne(id: number): Promise&lt;UserResponseDto&gt; {
+		const user = await this.userRepository.findById(id)
+
+		if (!user) {
+			throw new NotFoundException(`User with ID ${id} not found`)
+		}
+
+		return this.mapToResponseDto(user)
+	}
+
+	async create(createUserDto: CreateUserDto): Promise&lt;UserResponseDto&gt; {
+		const existingUserByEmail = await this.userRepository.findByEmail(
+			createUserDto.email
+		)
+		if (existingUserByEmail) {
+			throw new ConflictException('Email already exists')
+		}
+
+		const existingUserByLogin = await this.userRepository.findByLogin(
+			createUserDto.login
+		)
+		if (existingUserByLogin) {
+			throw new ConflictException('Login already exists')
+		}
+
+		const hashedPassword = await bcrypt.hash(createUserDto.password, 10)
+
+		const user = await this.userRepository.create({
+			...createUserDto,
+			password: hashedPassword,
+		})
+
+		return this.mapToResponseDto(user)
+	}
+
+	async update(
+		id: number,
+		updateUserDto: UpdateUserDto
+	): Promise&lt;UserResponseDto&gt; {
+		const existingUser = await this.userRepository.findById(id)
+		if (!existingUser) {
+			throw new NotFoundException(`User with ID ${id} not found`)
+		}
+
+		if (updateUserDto.email &amp;&amp; updateUserDto.email !== existingUser.email) {
+			const userWithEmail = await this.userRepository.findByEmail(
+				updateUserDto.email
+			)
+			if (userWithEmail) {
+				throw new ConflictException('Email already exists')
+			}
+		}
+
+		if (updateUserDto.login &amp;&amp; updateUserDto.login !== existingUser.login) {
+			const userWithLogin = await this.userRepository.findByLogin(
+				updateUserDto.login
+			)
+			if (userWithLogin) {
+				throw new ConflictException('Login already exists')
+			}
+		}
+
+		if (updateUserDto.password) {
+			updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10)
+		}
+
+		const user = await this.userRepository.update(id, updateUserDto)
+		return this.mapToResponseDto(user)
+	}
+
+	async remove(id: number): Promise&lt;void&gt; {
+		const user = await this.userRepository.findById(id)
+
+		if (!user) {
+			throw new NotFoundException(`User with ID ${id} not found`)
+		}
+
+		await this.userRepository.delete(id)
+	}
+
+	async validateUser(
+		login: string,
+		password: string
+	): Promise&lt;UserResponseDto | null&gt; {
+		const user = await this.userRepository.findByLogin(login)
+
+		if (user &amp;&amp; (await bcrypt.compare(password, user.password))) {
+			return this.mapToResponseDto(user)
+		}
+
+		return null
+	}
+
+	private mapToResponseDto(user: any): UserResponseDto {
+		const { password, ...userWithoutPassword } = user
+		return userWithoutPassword
+	}
+}
+</code></pre>
+<h4 id="tag-сервіс"><a class="header" href="#tag-сервіс">Tag сервіс</a></h4>
+<pre><code class="language-ts">// src/services/tag.service.ts
+import {
+	ConflictException,
+	Injectable,
+	NotFoundException,
+} from '@nestjs/common'
+import { TagRepository } from 'src/database/repositories/tag.repository'
+import { CreateTagDto } from 'src/shared/dto/create-tag.dto'
+import { TagResponseDto } from 'src/shared/dto/response-tag.dto'
+import { UpdateTagDto } from 'src/shared/dto/update-tag.dto'
+
+@Injectable()
+export class TagService {
+	constructor(private readonly tagRepository: TagRepository) {}
+
+	async findAll(): Promise&lt;TagResponseDto[]&gt; {
+		const tags = await this.tagRepository.findAll()
+		return tags.map(this.mapToResponseDto)
+	}
+
+	async findOne(id: number): Promise&lt;TagResponseDto&gt; {
+		const tag = await this.tagRepository.findById(id)
+
+		if (!tag) {
+			throw new NotFoundException(`Tag with ID ${id} not found`)
+		}
+
+		return this.mapToResponseDto(tag)
+	}
+
+	async create(createTagDto: CreateTagDto): Promise&lt;TagResponseDto&gt; {
+		// Check if tag name already exists
+		const existingTag = await this.tagRepository.findByName(createTagDto.name)
+		if (existingTag) {
+			throw new ConflictException(
+				`Tag with name '${createTagDto.name}' already exists`
+			)
+		}
+
+		const tag = await this.tagRepository.create(createTagDto)
+		return this.mapToResponseDto(tag)
+	}
+
+	async update(
+		id: number,
+		updateTagDto: UpdateTagDto
+	): Promise&lt;TagResponseDto&gt; {
+		const existingTag = await this.tagRepository.findById(id)
+		if (!existingTag) {
+			throw new NotFoundException(`Tag with ID ${id} not found`)
+		}
+
+		if (updateTagDto.name &amp;&amp; updateTagDto.name !== existingTag.name) {
+			const tagWithName = await this.tagRepository.findByName(updateTagDto.name)
+			if (tagWithName) {
+				throw new ConflictException(
+					`Tag with name '${updateTagDto.name}' already exists`
+				)
+			}
+		}
+
+		const tag = await this.tagRepository.update(id, updateTagDto)
+		return this.mapToResponseDto(tag)
+	}
+
+	async remove(id: number): Promise&lt;void&gt; {
+		const tag = await this.tagRepository.findById(id)
+
+		if (!tag) {
+			throw new NotFoundException(`Tag with ID ${id} not found`)
+		}
+
+		if (tag._count.links &gt; 0) {
+			throw new ConflictException(
+				`Cannot delete tag with ID ${id} because it has ${tag._count.links} associated links`
+			)
+		}
+
+		await this.tagRepository.delete(id)
+	}
+
+	async search(searchTerm: string): Promise&lt;TagResponseDto[]&gt; {
+		const tags = await this.tagRepository.search(searchTerm)
+		return tags.map(tag =&gt; this.mapToResponseDto(tag))
+	}
+
+	async findWithLinks(id: number): Promise&lt;any&gt; {
+		const tag = await this.tagRepository.findWithLinks(id)
+
+		if (!tag) {
+			throw new NotFoundException(`Tag with ID ${id} not found`)
+		}
+
+		return tag
+	}
+
+	private mapToResponseDto(tag: any): TagResponseDto {
+		return {
+			tagId: tag.tagId,
+			name: tag.name,
+			linkCount: tag._count?.links || 0,
+		}
+	}
+}
+</code></pre>
+<h3 id="Контролери-програми"><a class="header" href="#Контролери-програми">Контролери програми</a></h3>
+<h4 id="user-контролер"><a class="header" href="#user-контролер">User контролер</a></h4>
+<pre><code class="language-ts">// src/controllers/user.controller.ts
+import {
+	Body,
+	Controller,
+	Delete,
+	Get,
+	HttpCode,
+	HttpStatus,
+	Param,
+	ParseIntPipe,
+	Post,
+	Put,
+	ValidationPipe,
+} from '@nestjs/common'
+import { CreateUserDto } from 'src/shared/dto/create-user.dto'
+import { UpdateUserDto } from 'src/shared/dto/update-user.dto'
+import { UserResponseDto } from 'src/shared/dto/user-response.dto'
+import { UserService } from '../services/user.service'
+
+@Controller('api/users')
+export class UserController {
+	constructor(private readonly userService: UserService) {}
+
+	@Get()
+	async findAll(): Promise&lt;UserResponseDto[]&gt; {
+		return this.userService.findAll()
+	}
+
+	@Get(':id')
+	async findOne(
+		@Param('id', ParseIntPipe) id: number
+	): Promise&lt;UserResponseDto&gt; {
+		return this.userService.findOne(id)
+	}
+
+	@Post()
+	@HttpCode(HttpStatus.CREATED)
+	async create(
+		@Body(ValidationPipe) createUserDto: CreateUserDto
+	): Promise&lt;UserResponseDto&gt; {
+		return this.userService.create(createUserDto)
+	}
+
+	@Put(':id')
+	async update(
+		@Param('id', ParseIntPipe) id: number,
+		@Body(ValidationPipe) updateUserDto: UpdateUserDto
+	): Promise&lt;UserResponseDto&gt; {
+		return this.userService.update(id, updateUserDto)
+	}
+
+	@Delete(':id')
+	@HttpCode(HttpStatus.NO_CONTENT)
+	async remove(@Param('id', ParseIntPipe) id: number): Promise&lt;void&gt; {
+		return this.userService.remove(id)
+	}
+}
+</code></pre>
+<h4 id="tag-контролер"><a class="header" href="#tag-контролер">Tag контролер</a></h4>
+<pre><code class="language-ts">// src/controllers/tag.controller.ts
+import {
+	Body,
+	Controller,
+	Delete,
+	Get,
+	HttpCode,
+	HttpStatus,
+	Param,
+	ParseIntPipe,
+	Post,
+	Put,
+	Query,
+	ValidationPipe,
+} from '@nestjs/common'
+import { CreateTagDto } from 'src/shared/dto/create-tag.dto'
+import { TagResponseDto } from 'src/shared/dto/response-tag.dto'
+import { UpdateTagDto } from 'src/shared/dto/update-tag.dto'
+import { TagService } from '../services/tag.service'
+
+@Controller('api/tags')
+export class TagController {
+	constructor(private readonly tagService: TagService) {}
+
+	@Get()
+	async findAll(): Promise&lt;TagResponseDto[]&gt; {
+		return this.tagService.findAll()
+	}
+
+	@Get('search')
+	async search(@Query('q') searchTerm: string): Promise&lt;TagResponseDto[]&gt; {
+		return this.tagService.search(searchTerm || '')
+	}
+
+	@Get(':id')
+	async findOne(
+		@Param('id', ParseIntPipe) id: number
+	): Promise&lt;TagResponseDto&gt; {
+		return this.tagService.findOne(id)
+	}
+
+	@Get(':id/links')
+	async findWithLinks(@Param('id', ParseIntPipe) id: number): Promise&lt;any&gt; {
+		return this.tagService.findWithLinks(id)
+	}
+
+	@Post()
+	@HttpCode(HttpStatus.CREATED)
+	async create(
+		@Body(ValidationPipe) createTagDto: CreateTagDto
+	): Promise&lt;TagResponseDto&gt; {
+		return this.tagService.create(createTagDto)
+	}
+
+	@Put(':id')
+	async update(
+		@Param('id', ParseIntPipe) id: number,
+		@Body(ValidationPipe) updateTagDto: UpdateTagDto
+	): Promise&lt;TagResponseDto&gt; {
+		return this.tagService.update(id, updateTagDto)
+	}
+
+	@Delete(':id')
+	@HttpCode(HttpStatus.NO_CONTENT)
+	async remove(@Param('id', ParseIntPipe) id: number): Promise&lt;void&gt; {
+		return this.tagService.remove(id)
+	}
+}
+</code></pre>
+<h3 id="Репозиторії-програми"><a class="header" href="#Репозиторії-програми">Репозиторії програми</a></h3>
+<h4 id="user-репозиторій"><a class="header" href="#user-репозиторій">User репозиторій</a></h4>
+<pre><code class="language-ts">// src/repositories/user.repository.ts
+import { Injectable } from '@nestjs/common'
+import { Prisma, User } from '@prisma/client'
+import { PrismaService } from 'src/api/services/prisma.service'
+
+@Injectable()
+export class UserRepository {
+	constructor(private readonly prisma: PrismaService) {}
+
+	async findAll(): Promise&lt;User[]&gt; {
+		return this.prisma.user.findMany({})
+	}
+
+	async findById(userId: number): Promise&lt;User | null&gt; {
+		return this.prisma.user.findUnique({
+			where: { userId },
+		})
+	}
+
+	async findByEmail(email: string): Promise&lt;User | null&gt; {
+		return this.prisma.user.findUnique({
+			where: { email },
+		})
+	}
+
+	async findByLogin(login: string): Promise&lt;User | null&gt; {
+		return this.prisma.user.findUnique({
+			where: { login },
+		})
+	}
+
+	async create(data: Prisma.UserCreateInput): Promise&lt;User&gt; {
+		return this.prisma.user.create({
+			data,
+			include: {
+				accesses: {
+					include: {
+						role: true,
+						data: true,
+					},
+				},
+			},
+		})
+	}
+
+	async update(userId: number, data: Prisma.UserUpdateInput): Promise&lt;User&gt; {
+		return this.prisma.user.update({
+			where: { userId },
+			data,
+			include: {
+				accesses: {
+					include: {
+						role: true,
+						data: true,
+					},
+				},
+			},
+		})
+	}
+
+	async delete(userId: number): Promise&lt;User&gt; {
+		return this.prisma.user.delete({
+			where: { userId },
+		})
+	}
+
+	async count(): Promise&lt;number&gt; {
+		return this.prisma.user.count()
+	}
+}
+</code></pre>
+<h4 id="tag-репозиторій"><a class="header" href="#tag-репозиторій">Tag репозиторій</a></h4>
+<pre><code class="language-ts">// src/repositories/tag.repository.ts
+import { Injectable } from '@nestjs/common'
+import { Prisma, Tag } from '@prisma/client'
+import { PrismaService } from 'src/api/services/prisma.service'
+
+@Injectable()
+export class TagRepository {
+	constructor(private readonly prisma: PrismaService) {}
+
+	async findAll(): Promise&lt;(Tag &amp; { _count: { links: number } })[]&gt; {
+		return this.prisma.tag.findMany({
+			include: {
+				_count: {
+					select: { links: true },
+				},
+			},
+			orderBy: {
+				name: 'asc',
+			},
+		})
+	}
+
+	async findById(
+		tagId: number
+	): Promise&lt;(Tag &amp; { _count: { links: number } }) | null&gt; {
+		return this.prisma.tag.findUnique({
+			where: { tagId },
+			include: {
+				_count: {
+					select: { links: true },
+				},
+			},
+		})
+	}
+
+	async findByName(name: string): Promise&lt;Tag | null&gt; {
+		return this.prisma.tag.findUnique({
+			where: { name },
+		})
+	}
+
+	async create(data: Prisma.TagCreateInput): Promise&lt;Tag&gt; {
+		return this.prisma.tag.create({
+			data,
+		})
+	}
+
+	async update(tagId: number, data: Prisma.TagUpdateInput): Promise&lt;Tag&gt; {
+		return this.prisma.tag.update({
+			where: { tagId },
+			data,
+		})
+	}
+
+	async delete(tagId: number): Promise&lt;Tag&gt; {
+		return this.prisma.tag.delete({
+			where: { tagId },
+		})
+	}
+
+	async findWithLinks(tagId: number): Promise&lt;(Tag &amp; { links: any[] }) | null&gt; {
+		return this.prisma.tag.findUnique({
+			where: { tagId },
+			include: {
+				links: {
+					include: {
+						data: true,
+					},
+				},
+			},
+		})
+	}
+
+	async count(): Promise&lt;number&gt; {
+		return this.prisma.tag.count()
+	}
+
+	async search(searchTerm: string): Promise&lt;Tag[]&gt; {
+		return this.prisma.tag.findMany({
+			where: {
+				name: {
+					contains: searchTerm,
+				},
+			},
+			orderBy: {
+				name: 'asc',
+			},
+		})
+	}
+}
+</code></pre>
+<h3 id="Підключення-до-бази-даних"><a class="header" href="#Підключення-до-бази-даних">Підключення до бази даних</a></h3>
+<h4 id="Модуль"><a class="header" href="#Модуль">Модуль</a></h4>
+<pre><code class="language-ts">import { Global, Module } from '@nestjs/common'
+import { PrismaService } from '../services/prisma.service'
+
+@Global()
+@Module({
+	providers: [PrismaService],
+	exports: [PrismaService],
+})
+export class PrismaModule {}
+</code></pre>
+<h4 id="Сервіс"><a class="header" href="#Сервіс">Сервіс</a></h4>
+<pre><code class="language-ts">import { Injectable } from '@nestjs/common'
+import { PrismaClient } from '@prisma/client'
+
+@Injectable()
+export class PrismaService extends PrismaClient {
+	constructor() {
+		super({
+			datasources: {
+				db: {
+					url: process.env.DATABASE_URL,
+				},
+			},
+		})
+	}
+}
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="Тестування-працездатності-системи"><a class="header" href="#Тестування-працездатності-системи">Тестування працездатності системи</a></h1>
-<p><em>В цьому розділі необхідно вказати засоби тестування, навести вихідні коди тестів та результати тестування.</em></p>
+<h3 id="Запуск-сервера"><a class="header" href="#Запуск-сервера">Запуск сервера</a></h3>
+<pre><code class="language-bash">npm run start:dev
+</code></pre>
+<p><img src="./img/image-25.png" alt="Запуск сервера" /></p>
+<h3 id="api-documentation-та-перелік-можливих-запитів"><a class="header" href="#api-documentation-та-перелік-можливих-запитів">Api documentation та перелік можливих запитів</a></h3>
+<p><img src="./img/image-37.png" alt="Swagger" /></p>
+<h3 id="users"><a class="header" href="#users">Users</a></h3>
+<p><strong>GET /users</strong></p>
+<p><img src="./img/image-27.png" alt="get all users" /></p>
+<p><strong>POST /users</strong></p>
+<p><img src="./img/image-29.png" alt="create new user" /></p>
+<p><strong>GET /users/:id</strong></p>
+<p><img src="./img/image-28.png" alt="get user by id" /></p>
+<p><strong>PUT /users/:id</strong></p>
+<p><img src="./img/image-30.png" alt="update user by id" /></p>
+<p><strong>DELETE /users/:id</strong></p>
+<p><img src="./img/image-31.png" alt="delete user by id" /></p>
+<h3 id="tags"><a class="header" href="#tags">Tags</a></h3>
+<p><strong>GET /tags</strong></p>
+<p><img src="./img/image-32.png" alt="get all tags" /></p>
+<p><img src="./img/image-38.png" alt="get all tags with search" /></p>
+<p><strong>POST /tags</strong></p>
+<p><img src="./img/image-33.png" alt="create new tag" /></p>
+<p><strong>GET /tags/:id</strong></p>
+<p><img src="./img/image-34.png" alt="get tag by id" /></p>
+<p><strong>PUT /tags/:id</strong></p>
+<p><img src="./img/image-35.png" alt="update tag by id" /></p>
+<p><strong>DELETE /tags/:id</strong></p>
+<p><img src="./img/image-36.png" alt="delete tag by id" /></p>
+<h3 id="exceptions"><a class="header" href="#exceptions">Exceptions</a></h3>
+<h4 id="users-1"><a class="header" href="#users-1">Users</a></h4>
+<p><strong>POST /users</strong></p>
+<p><img src="./img/image-40.png" alt="exceptions post users" /></p>
+<p><strong>GET /users/:id</strong></p>
+<p><img src="./img/image-41.png" alt="exceptions get user by id" /></p>
+<p><strong>PUT /users/:id</strong></p>
+<p><img src="./img/image-42.png" alt="exceptions patch user by id" /></p>
+<p><strong>DELETE /users/:id</strong></p>
+<p><img src="./img/image-43.png" alt="exceptions delete user by id" /></p>
+<h4 id="tags-1"><a class="header" href="#tags-1">Tags</a></h4>
+<p><strong>POST /tags</strong></p>
+<p><img src="./img/image-44.png" alt="exceptions create new tag" /></p>
+<p><strong>GET /tags/:id</strong></p>
+<p><img src="./img/image-39.png" alt="exceptions get tag by id" /></p>
+<p><strong>PUT /tags/:id</strong></p>
+<p><img src="./img/image-45.png" alt="exceptions update tag by id" />
+<img src="./img/image-46.png" alt="exceptions update tag by id" /></p>
+<p><strong>DELETE /tags/:id</strong></p>
+<p><img src="./img/image-47.png" alt="exceptions delete tag by id" /></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="Висновки-1"><a class="header" href="#Висновки-1">Висновки</a></h1>
 <p>У висновках наводять оцінку отриманих результатів, можливі галузі його використання. Висновки повинні містити в собі коротку узагальнену оцінку результатів розробки, у
 тому числі і з погляду на їх технічно-економічну ефективність. Необхідно порівняти
